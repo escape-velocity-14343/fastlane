@@ -113,7 +113,9 @@ class Fastlane(
         // while projected pose is past point, move on!
         while (index != points.size - 1
             && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0 ) {
+            distanceToEnd -= Inches.of(currentStartPoint.pose.distanceTo(currentEndPoint.pose)) // subtract off this segment
             index++
+
         }
 
         // irrelevant amount of code dupe
