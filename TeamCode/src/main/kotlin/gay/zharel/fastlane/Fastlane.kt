@@ -2,16 +2,20 @@ package gay.zharel.fastlane
 
 import dev.nextftc.control.geometry.Pose2d
 import dev.nextftc.control.geometry.PoseVelocity2d
+import dev.nextftc.control.geometry.Rotation2d
 import dev.nextftc.control.geometry.Twist2d
 import dev.nextftc.control.geometry.Vector2d
 import dev.nextftc.units.Inches
 import dev.nextftc.units.InchesPerSecond
+import dev.nextftc.units.Measure
 import dev.nextftc.units.Meters
 import dev.nextftc.units.measuretypes.Distance
 import dev.nextftc.units.measuretypes.LinearVelocity
 import dev.nextftc.units.measuretypes.Voltage
 import dev.nextftc.units.unittypes.DistanceUnit
 import dev.nextftc.units.unittypes.LinearVelocityUnit
+import dev.nextftc.units.unittypes.PerUnit
+import dev.nextftc.units.unittypes.TimeUnit
 import java.util.function.Consumer
 import java.util.function.Function
 
@@ -32,17 +36,18 @@ interface KinematicsPropogator {
 }
 
 class MecanumKinematicsPropogator(
-    val axialCoast: Function<LinearVelocity, LinearVelocity>, val coaxialCoast: Function<LinearVelocity, LinearVelocity>
+    val axialCoast: Function<Measure<PerUnit<DistanceUnit, TimeUnit>>, Distance>,
+    val coaxialCoast: Function<Measure<PerUnit<DistanceUnit, TimeUnit>>, Distance>
 ) : KinematicsPropogator {
     override fun getProjectedPose(
         pos: Pose2d, vel: PoseVelocity2d
     ): Pose2d {
-        // convert vel to robot relative (in/s ignore units)
+        // convert vel to robot relative
         // chassis vel helper does this for us. thanks sensible geometry classes!
         val rcVel = vel.toChassis(pos.heading)
 
         // propogate independently
-        val rcTwist = Twist2d(axialCoast.apply(rcVel.linearVel.x), coaxialCoast.apply(rcVel.linearVel.y), 0.0)
+        val rcTwist = Twist2d(axialCoast.apply(rcVel.linearVel.x), coaxialCoast.apply(rcVel.linearVel.y), Rotation2d.zero)
         return pos.plus(rcTwist)
     }
 
@@ -68,7 +73,7 @@ class Fastlane(
                 value
                     .foldIndexed(0.0) {
                         i, acc, pose ->
-                        if (i > 0) acc + value[i - 1].pose.distanceTo(pose) else 0.0
+                        if (i > 0) acc + value[i - 1].pose.distanceTo(pose.pose) else 0.0
                     }
             )
         }
@@ -93,7 +98,7 @@ class Fastlane(
             points
                 .foldIndexed(0.0) {
                         i, acc, pose ->
-                    if (i > 0) acc + points[i - 1].pose.distanceTo(pose) else 0.0
+                    if (i > 0) acc + points[i - 1].pose.distanceTo(pose.pose) else 0.0
                 }
         )
         currentT = 0.0
