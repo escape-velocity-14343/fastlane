@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 //
 // build.gradle in TeamCode
 //
@@ -14,6 +16,9 @@
 // Include common definitions from above.
 apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
+apply plugin: 'kotlin-android'
+
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
@@ -23,6 +28,28 @@ android {
     }
 }
 
+repositories {
+    maven {
+        url "https://repo.dairy.foundation/releases"
+    }
+    maven {
+        url "https://central.sonatype.com/repository/maven-snapshots/"
+    }
+    maven {
+        url 'https://maven.brott.dev/'
+    }
+}
+
+//android {
+//    kotlin {
+//
+//    }
+//}
+
 dependencies {
     implementation project(':FtcRobotController')
+//    implementation "org.solverslib:core:0.3.4"
+//    implementation 'com.acmerobotics.dashboard:dashboard:0.6.0'
+    implementation 'gay.zharel.fateweaver:ftc:0.4.1'
+    implementation 'dev.nextftc.v2:control:0.1.0-rc.1-SNAPSHOT'
 }
