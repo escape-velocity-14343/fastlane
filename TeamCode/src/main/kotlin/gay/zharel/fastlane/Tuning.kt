@@ -71,6 +71,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Forward Pass End. System time: ${System.nanoTime()}")
                 var endPose = localizer.getPose()
+                writer.write(testName, "${localizer.getVelocity().linearVel.norm()}")
 
                 while (localizer.getVelocity().linearVel.norm() > 0.01) {
                     localizer.update()
@@ -91,6 +92,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Backward Pass End. System time: ${System.nanoTime()}")
                 endPose = localizer.getPose()
+                writer.write(testName, "${localizer.getVelocity().linearVel.norm()}")
 
                 while (localizer.getVelocity().linearVel.norm() > 0.01) {
                     localizer.update()
