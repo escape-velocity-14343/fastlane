@@ -71,7 +71,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Forward Pass End. System time: ${System.nanoTime()}")
                 var endPose = localizer.getPose()
-                writer.write("endVelocity", "${localizer.getVelocity().linearVel.norm()}")
+                writer.write("endVelocity", localizer.getVelocity().linearVel.norm())
 
                 while (localizer.getVelocity().linearVel.norm() > 0.01) {
                     localizer.update()
@@ -79,7 +79,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Forward Coast End. System time: ${System.nanoTime()}")
                 var coastPose = localizer.getPose()
-                writer.write("endDistance", "${coastPose.distanceTo(endPose)}")
+                writer.write("endDistance", coastPose.distanceTo(endPose))
 
                 startTime = System.nanoTime()
                 writer.write(testName, "Backward Pass Start. System time: ${System.nanoTime()}")
@@ -92,7 +92,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Backward Pass End. System time: ${System.nanoTime()}")
                 endPose = localizer.getPose()
-                writer.write("endVelocity", "${localizer.getVelocity().linearVel.norm()}")
+                writer.write("endVelocity", localizer.getVelocity().linearVel.norm())
 
                 while (localizer.getVelocity().linearVel.norm() > 0.01) {
                     localizer.update()
@@ -100,7 +100,7 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
 
                 writer.write(testName, "Backward Coast End. System time: ${System.nanoTime()}")
                 coastPose = localizer.getPose()
-                writer.write("endDistance", "${coastPose.distanceTo(endPose)}")
+                writer.write("endDistance", coastPose.distanceTo(endPose))
             }
         }
     }
