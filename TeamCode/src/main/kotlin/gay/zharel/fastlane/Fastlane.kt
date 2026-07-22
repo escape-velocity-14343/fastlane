@@ -19,7 +19,7 @@ import dev.nextftc.units.unittypes.TimeUnit
 import java.util.function.Consumer
 import java.util.function.Function
 
-data class Waypoint(val pose: Pose2d, val topSpeed: Voltage = NormalizedThrottle.of(Double.POSITIVE_INFINITY))
+data class Waypoint(val pose: Pose2d, val topThrottle: Voltage = NormalizedThrottle.of(Double.POSITIVE_INFINITY))
 
 fun Pose2d.toWaypoint() = Waypoint(this)
 interface Localizer {
@@ -54,7 +54,7 @@ class MecanumKinematicsPropogator(
 }
 
 /**
- * @param driveFunction consumes a PoseVelocity2d (in units of FTC motor power aka normalized voltage)
+ * @param driveFunction consumes a PoseVoltage2d to drive the robot
  * to drive the dt that way
  */
 class Fastlane(
@@ -62,7 +62,8 @@ class Fastlane(
     val kinematicsPropogator: KinematicsPropogator,
     val headingController: Controller<Double, Voltage>,
     val drivetrainController: Controller<Distance, Voltage>,
-    val driveFunction: Consumer<PoseVelocity2d>
+    val driveFunction: Consumer<PoseVoltage2d>,
+    val tolerance: Distance
 ) {
 
     // EXTERNAL PARAMETERS
@@ -73,7 +74,7 @@ class Fastlane(
                 value
                     .foldIndexed(0.0) {
                         i, acc, pose ->
-                        if (i > 0) acc + value[i - 1].pose.distanceTo(pose.pose) else 0.0
+                        if (i > 1) acc + value[i - 1].pose.distanceTo(pose.pose) else 0.0
                     }
             )
         }
@@ -88,6 +89,7 @@ class Fastlane(
 
     // for usage with triggers and such
     var currentT = 0.0
+    var isFinished = false
 
     /**
      * Resets all internal states. Call before any follower run.
@@ -98,10 +100,11 @@ class Fastlane(
             points
                 .foldIndexed(0.0) {
                         i, acc, pose ->
-                    if (i > 0) acc + points[i - 1].pose.distanceTo(pose.pose) else 0.0
+                    if (i > 1) acc + points[i - 1].pose.distanceTo(pose.pose) else 0.0
                 }
         )
         currentT = 0.0
+        isFinished = false
     }
 
     fun get(): PoseVoltage2d {
@@ -110,12 +113,18 @@ class Fastlane(
 
         val propogatedPose = kinematicsPropogator.getProjectedPose(pose, vel)
 
+        // end condition check
+        isFinished = Inches.of(propogatedPose.distanceTo(lastPoint.pose)) < tolerance
+                && index == points.size - 1
+
         // while projected pose is past point, move on!
         while (index != points.size - 1
-            && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0 ) {
-            distanceToEnd -= Inches.of(currentStartPoint.pose.distanceTo(currentEndPoint.pose)) // subtract off this segment
+            && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0) {
             index++
-
+            // subtract off this segment
+            if (index != points.size - 1) {
+                distanceToEnd -= Inches.of(currentStartPoint.pose.distanceTo(currentEndPoint.pose))
+            }
         }
 
         // irrelevant amount of code dupe
@@ -123,8 +132,10 @@ class Fastlane(
 
         // translation!!
         // get the drive controller output, always wrt distance remaining to last. units ftc power!
-        val controlMagnitude = drivetrainController.get(distanceToEnd, Inches.of(0.0))
-            .coerceIn(-currentEndPoint.topSpeed, currentEndPoint.topSpeed)
+        val controlMagnitude = drivetrainController.get(
+            distanceToEnd + Inches.of(propogatedPose.distanceTo(currentEndPoint.pose)),
+            Inches.of(0.0)
+        ).coerceIn(-currentEndPoint.topThrottle, currentEndPoint.topThrottle)
 
         var controlDirection = (currentEndPoint.pose - propogatedPose).line
         controlDirection /= controlDirection.norm()
