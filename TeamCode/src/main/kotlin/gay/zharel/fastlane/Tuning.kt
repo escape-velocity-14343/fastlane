@@ -3,11 +3,9 @@ package gay.zharel.fastlane
 import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import dev.nextftc.control.geometry.Vector2d
-import dev.nextftc.units.InchesPerSecond
-import gay.zharel.fateweaver.flight.FlightRecorder
+import gay.zharel.fateweaver.flight.FateLogManager
 import gay.zharel.fateweaver.log.FateLogWriter
 import java.util.function.Consumer
-import kotlin.math.roundToInt
 
 enum class Axis {
     FORWARD,
@@ -39,17 +37,19 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
      */
     fun runTuner() {
 
-        val forwards = PoseVoltage2d(if (axis == Axis.FORWARD) Vector2d(
-            NormalizedThrottle.of(1.0),
-            NormalizedThrottle.of(0.0)
-        ) else Vector2d(
-            NormalizedThrottle.of(0.0),
-            NormalizedThrottle.of(1.0)
-        ), NormalizedThrottle.of(0.0))
+        val forwards = PoseVoltage2d(
+            if (axis == Axis.FORWARD) Vector2d(
+                NormalizedThrottle.of(1.0),
+                NormalizedThrottle.of(0.0)
+            ) else Vector2d(
+                NormalizedThrottle.of(0.0),
+                NormalizedThrottle.of(1.0)
+            ), NormalizedThrottle.of(0.0)
+        )
 
         val backwards = PoseVoltage2d(forwards.linearVolt * -1.0, forwards.angVolt)
 
-        val writer = FateLogWriter.create("StoppingDistanceTest${axis.name}-${System.nanoTime()}")
+        val writer = FateLogManager.start("StoppingDistanceTest${axis.name}-${System.nanoTime()}")
         val localizer = TuningMechanisms.localizer
 
         // run 5 data points worth of tests
@@ -103,7 +103,5 @@ abstract class StoppingDistanceTuner : LinearOpMode() {
                 writer.write("endDistance", "${coastPose.distanceTo(endPose)}")
             }
         }
-
     }
-
 }

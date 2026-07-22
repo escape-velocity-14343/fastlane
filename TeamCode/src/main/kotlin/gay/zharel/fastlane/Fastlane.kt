@@ -1,30 +1,23 @@
 package gay.zharel.fastlane
 
-import dev.nextftc.control.geometry.Pose2d
-import dev.nextftc.control.geometry.PoseVelocity2d
-import dev.nextftc.control.geometry.Rotation2d
-import dev.nextftc.control.geometry.Twist2d
-import dev.nextftc.control.geometry.Vector2d
+import dev.nextftc.control.geometry.*
 import dev.nextftc.units.Inches
-import dev.nextftc.units.InchesPerSecond
 import dev.nextftc.units.Measure
-import dev.nextftc.units.Meters
 import dev.nextftc.units.measuretypes.Distance
-import dev.nextftc.units.measuretypes.LinearVelocity
 import dev.nextftc.units.measuretypes.Voltage
 import dev.nextftc.units.unittypes.DistanceUnit
-import dev.nextftc.units.unittypes.LinearVelocityUnit
 import dev.nextftc.units.unittypes.PerUnit
 import dev.nextftc.units.unittypes.TimeUnit
 import java.util.function.Consumer
 import java.util.function.Function
 
-data class Waypoint(val pose: Pose2d, val topThrottle: Voltage = NormalizedThrottle.of(Double.POSITIVE_INFINITY))
+data class Waypoint(val pose: Pose2d, val topSpeed: Voltage = NormalizedThrottle.of(Double.POSITIVE_INFINITY))
 
 fun Pose2d.toWaypoint() = Waypoint(this)
 interface Localizer {
     fun getPose(): Pose2d
     fun getVelocity(): PoseVelocity2d
+    fun update()
 }
 
 interface Controller<X, U> {
@@ -47,7 +40,8 @@ class MecanumKinematicsPropogator(
         val rcVel = vel.toChassis(pos.heading)
 
         // propogate independently
-        val rcTwist = Twist2d(axialCoast.apply(rcVel.linearVel.x), coaxialCoast.apply(rcVel.linearVel.y), Rotation2d.zero)
+        val rcTwist =
+            Twist2d(axialCoast.apply(rcVel.linearVel.x), coaxialCoast.apply(rcVel.linearVel.y), Rotation2d.zero)
         return pos.plus(rcTwist)
     }
 
@@ -72,8 +66,7 @@ class Fastlane(
             field = value
             distanceToEnd = Inches.of(
                 value
-                    .foldIndexed(0.0) {
-                        i, acc, pose ->
+                    .foldIndexed(0.0) { i, acc, pose ->
                         if (i > 1) acc + value[i - 1].pose.distanceTo(pose.pose) else 0.0
                     }
             )
@@ -98,8 +91,7 @@ class Fastlane(
         index = 0
         distanceToEnd = Inches.of(
             points
-                .foldIndexed(0.0) {
-                        i, acc, pose ->
+                .foldIndexed(0.0) { i, acc, pose ->
                     if (i > 1) acc + points[i - 1].pose.distanceTo(pose.pose) else 0.0
                 }
         )
@@ -119,7 +111,8 @@ class Fastlane(
 
         // while projected pose is past point, move on!
         while (index != points.size - 1
-            && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0) {
+            && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0
+        ) {
             index++
             // subtract off this segment
             if (index != points.size - 1) {
@@ -135,12 +128,14 @@ class Fastlane(
         val controlMagnitude = drivetrainController.get(
             distanceToEnd + Inches.of(propogatedPose.distanceTo(currentEndPoint.pose)),
             Inches.of(0.0)
-        ).coerceIn(-currentEndPoint.topThrottle, currentEndPoint.topThrottle)
+        ).coerceIn(-currentEndPoint.topSpeed, currentEndPoint.topSpeed)
 
         var controlDirection = (currentEndPoint.pose - propogatedPose).line
         controlDirection /= controlDirection.norm()
-        val controlDirectionVolts = Vector2d(controlMagnitude * controlDirection.x.baseUnitMagnitude,
-            controlMagnitude * controlDirection.y.baseUnitMagnitude)
+        val controlDirectionVolts = Vector2d(
+            controlMagnitude * controlDirection.x.baseUnitMagnitude,
+            controlMagnitude * controlDirection.y.baseUnitMagnitude
+        )
 
         // heading
         val headingImpulse = headingController.get(pose.heading.toDouble(), currentEndPoint.pose.heading.toDouble())
