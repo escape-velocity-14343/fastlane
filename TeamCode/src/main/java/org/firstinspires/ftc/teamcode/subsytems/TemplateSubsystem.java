@@ -21,7 +21,7 @@ public class TemplateSubsystem extends SubsystemBase {
         STATE2,
         STATE3
     }
-    public static ExampleState state = ExampleState.DISABLED;
+    public ExampleState state = ExampleState.DISABLED;
 
     // CONFIG VARS
     public static double EXAMPLE_CONFIG_VAR = 0.0;
@@ -41,7 +41,11 @@ public class TemplateSubsystem extends SubsystemBase {
     private DcMotorEx internalMotor, internalMotor2;
 
     public TemplateSubsystem(HardwareMap hardwareMap, Trigger exampleTrigger, DoubleSupplier exampleSupplier) {
-        this.internalMotor = (DcMotorEx) hardwareMap.dcMotor.get("super cool motor");
+        this.internalMotor = hardwareMap.get(DcMotorEx.class, "super cool motor");
+        this.internalMotor2 = hardwareMap.get(DcMotorEx.class, "less cool motor");
+
+        exampleTrigger
+                .whenActive(() -> EnderLog.write("bruh", "i did a thing " + exampleSupplier.getAsDouble()));
     }
 
     @Override
@@ -58,11 +62,12 @@ public class TemplateSubsystem extends SubsystemBase {
                 break;
             case STATE3:
                 closedLoopMotor();
-                break; // fallthrough cuz im lazy but put stuff here
+                break;
         }
 
-        EnderLog.write("descriptiveName", internalSomething);
-        EnderLog.write("anotherDescriptiveName", internalSomething2);
+        // log any getters in periodic, as well as relevant internal vars
+        EnderLog.write("descriptiveName", internalSomething2);
+        EnderLog.write("distance", getDistance());
     }
 
     // state open/closed loop stuff
@@ -77,9 +82,14 @@ public class TemplateSubsystem extends SubsystemBase {
     }
 
     public Distance getDistance() {
-        Distance dist = Inches.of(this.internalMotor.getCurrentPosition() * EXAMPLE_CONFIG_VAR);
-        EnderLog.write("distance", dist);
-        return dist;
+        return Inches.of(this.internalMotor.getCurrentPosition() * EXAMPLE_CONFIG_VAR);
+    }
+
+    public void setSomething(boolean something) {
+        this.internalSomething = something ? 5.0 : 0.0;
+        // log any variable assignments in setters directly in the setter
+        EnderLog.write("something", something);
+        EnderLog.write("somethingValue", internalSomething);
     }
 
 }
