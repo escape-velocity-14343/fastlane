@@ -48,7 +48,7 @@ repositories {
 
 dependencies {
     implementation project(':FtcRobotController')
-//    implementation "org.solverslib:core:0.3.4"
+    implementation "org.solverslib:core:0.3.4"
     implementation 'com.acmerobotics.dashboard:dashboard:0.6.0'
     implementation 'gay.zharel.fateweaver:ftc:0.4.1'
     implementation 'dev.nextftc.v2:control:0.1.0-rc.1-SNAPSHOT'
