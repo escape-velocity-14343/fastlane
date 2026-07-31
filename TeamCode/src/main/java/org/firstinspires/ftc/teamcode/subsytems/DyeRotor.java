@@ -13,14 +13,14 @@ import static dev.nextftc.units.Units.*;
 
 @Config
 public class DyeRotor extends SubsystemBase {
-    // state
-    public enum DyeRotorState {
+    // mode
+    public enum DyeRotorMode {
         DISABLED,
         OPEN_LOOP_ONLY,
         TRANSFER_FEEDBACK,
         FULL
     }
-    public static DyeRotorState state = DyeRotorState.DISABLED;
+    public static DyeRotorMode mode = DyeRotorMode.DISABLED;
     public static double DYE_ROTOR_STALL_AMPS = 6.0;
     public static double DYE_ROTOR_THROTTLE = 1.0;
     public static double DYE_ROTOR_STALL_THROTTLE = 1.0;
@@ -42,7 +42,7 @@ public class DyeRotor extends SubsystemBase {
 
     @Override
     public void periodic() {
-        switch (state) {
+        switch (mode) {
             case DISABLED:
                 break;
             case OPEN_LOOP_ONLY:

@@ -49,11 +49,13 @@ object VoltageCache {
 
 }
 
+@JvmField
 val Throttle = VoltageUnit(Volts,
     {throttle: Double -> throttle * VoltageCache.currentVoltage},
     {volt: Double -> volt / VoltageCache.currentVoltage},
     "throttle", "thr")
 
+@JvmField
 val NormalizedThrottle = VoltageUnit(Volts, VoltageCache.nominalVoltage,
     "norm-throttle", "thrN")
 

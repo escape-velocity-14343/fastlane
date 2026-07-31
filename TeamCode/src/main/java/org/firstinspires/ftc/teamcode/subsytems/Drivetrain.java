@@ -29,13 +29,8 @@ public class Drivetrain extends SubsystemBase {
     public static double RELEASED_POSITION = 0.0;
 
     // mutexes for requirements
-    public class Suspension extends SubsystemBase {
-
-    }
-
-    public class DriveWheels extends SubsystemBase {
-
-    }
+    public class Suspension extends SubsystemBase {}
+    public Suspension suspension = new Suspension();
 
     private final DcMotorEx lf, lb, rf, rb;
     private final Servo stabilizer;
