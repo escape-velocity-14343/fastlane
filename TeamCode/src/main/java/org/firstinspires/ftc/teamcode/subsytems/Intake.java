@@ -111,6 +111,8 @@ public class Intake extends SubsystemBase {
 
     public void setState(IntakeState state) {
         this.state = state;
+        EnderLog.write("intakePivotAngle", state.pivotAngle);
+        EnderLog.write("intakeThrottle", state.intakeThrottle);
     }
 
     public Command setStateCommand(IntakeState state) {

@@ -71,7 +71,7 @@ black box
 [ ] cata xbow
 [ ] shooter
 [X] dye
-[ ] intake
+[X] intake
 [X] vision
 [ ] superstructure
 
