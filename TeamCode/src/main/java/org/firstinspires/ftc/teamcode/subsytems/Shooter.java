@@ -116,7 +116,7 @@ public class Shooter extends SubsystemBase {
                         new RunCommand(() -> {
                             this.flywheel.setPower(state.flywheelAngVel.into(RotationsPerMinute) * FLYWHEEL_THROTTLE_PER_RPM
                                     + flywheelController.get(getFlywheelAngVel(), state.flywheelAngVel));
-                        })
+                        }, flywheelMutex)
                 );
                 break;
             case TUNING:
@@ -135,7 +135,7 @@ public class Shooter extends SubsystemBase {
                         new RunCommand(() -> {
                             this.flywheel.setPower(state.flywheelAngVel.into(RotationsPerMinute) * FLYWHEEL_THROTTLE_PER_RPM
                                     + flywheelController.get(getFlywheelAngVel(), state.flywheelAngVel));
-                        })
+                        }, flywheelMutex)
                 );
                 break;
 

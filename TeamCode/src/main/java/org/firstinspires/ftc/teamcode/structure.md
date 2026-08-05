@@ -67,9 +67,9 @@ black box
 # TODO
 
 [X] dt
-[ ] cata mech
-[ ] cata xbow
-[ ] shooter
+[X] cata mech
+[X] cata xbow
+[X] shooter
 [X] dye
 [X] intake
 [X] vision

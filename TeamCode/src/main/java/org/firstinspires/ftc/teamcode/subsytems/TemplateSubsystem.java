@@ -12,7 +12,6 @@ import org.firstinspires.ftc.teamcode.util.EnderLog;
 import java.util.function.DoubleSupplier;
 
 import static dev.nextftc.units.Units.*;
-import static gay.zharel.fastlane.UnitsKt.*;
 
 /**
  * This subsystem does something
@@ -29,7 +28,7 @@ public class TemplateSubsystem extends SubsystemBase {
         MODE2,
         FULL
     }
-    public static ExampleMode mode = ExampleMode.DISABLED;
+    public static CatalystXbowMode mode = CatalystXbowMode.DISABLED;
 
     // STATE HANDLING (optional)
     public enum ExampleState {

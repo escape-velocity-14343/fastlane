@@ -48,8 +48,8 @@ public class Drivetrain extends SubsystemBase {
         this.yawSupplier = yawSupplier;
 
         terrainTrigger
-                .whenActive(() -> {setStabilizer(true);})
-                .whenInactive(() -> {setStabilizer(false);});
+                .whenActive(() -> {setStabilizer(false);})
+                .whenInactive(() -> {setStabilizer(true);});
     }
 
     // fc drive
