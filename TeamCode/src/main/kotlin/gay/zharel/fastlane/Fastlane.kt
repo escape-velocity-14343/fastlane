@@ -3,17 +3,70 @@ package gay.zharel.fastlane
 import dev.nextftc.control.geometry.*
 import dev.nextftc.units.Inches
 import dev.nextftc.units.Measure
+import dev.nextftc.units.measuretypes.Angle
 import dev.nextftc.units.measuretypes.Distance
 import dev.nextftc.units.measuretypes.Voltage
 import dev.nextftc.units.unittypes.DistanceUnit
 import dev.nextftc.units.unittypes.PerUnit
 import dev.nextftc.units.unittypes.TimeUnit
+import java.util.PriorityQueue
+import java.util.Queue
 import java.util.function.Consumer
 import java.util.function.Function
 
-data class Waypoint(val pose: Pose2d, val topSpeed: Voltage = NormalizedThrottle.of(Double.POSITIVE_INFINITY))
+data class Waypoint(val pos: Vector2d<DistanceUnit>) {
+    val pose get() = Pose2d(this.pos, Rotation2d.zero)
+}
 
-fun Pose2d.toWaypoint() = Waypoint(this)
+val Pose2d.waypoint get() = Waypoint(this.position)
+
+data class RotationTarget(val t: Double, val angle: Rotation2d)
+
+data class ConstraintZone(val startT: Double, val endT: Double, val topSpeed: Voltage)
+
+data class FastlanePath(
+    val waypoints: List<Waypoint>,
+    val rotationTargets: List<RotationTarget>,
+    val constraintZones: List<ConstraintZone>,
+    val name: String,
+    val state: FastlanePathState = FastlanePathState()
+) {
+    val rotationTarget: RotationTarget get() = rotationTargets[state.rotationIndex]
+    val constraintZone: ConstraintZone get() = constraintZones[state.constraintIndex]
+
+    val currentStartWaypoint: Waypoint get() = waypoints[state.waypointIndex - 1]
+    val currentEndWaypoint: Waypoint get() = waypoints[state.waypointIndex]
+
+    fun updateState(t: Double) {
+        while (t > rotationTarget.t) {
+            state.rotationIndex++;
+        }
+        while (t > constraintZone.endT) {
+            state.constraintIndex++;
+        }
+    }
+
+    fun getMaxVoltage(t: Double): Voltage {
+        return if (t > constraintZone.startT && t < constraintZone.endT) {
+            constraintZone.topSpeed
+        } else {
+            Throttle.of(1.0);
+        }
+    }
+
+}
+
+data class FastlanePathState(
+    var waypointIndex: Int = 1,
+    var rotationIndex: Int = 0,
+    var constraintIndex: Int = 0,
+) {
+    fun reset() {
+        this.constraintIndex = 0
+        this.rotationIndex = 0
+        this.waypointIndex = 1
+    }
+}
 interface Localizer {
     fun getPose(): Pose2d
     fun getVelocity(): PoseVelocity2d
@@ -47,6 +100,19 @@ class MecanumKinematicsPropogator(
 
 }
 
+object FastlanePaths {
+    val cachedPaths: MutableMap<String, FastlanePath> = mutableMapOf()
+
+    /**
+     * loads paths before the auto starts or something
+     */
+    fun loadPathplannerPaths(vararg names: String) {
+        names.forEach {
+            cachedPaths[it] = PathPlannerParser.parse(PathplannerFileManager.getPathFile(it)).fastlanePath
+        }
+    }
+}
+
 /**
  * @param driveFunction consumes a PoseVoltage2d to drive the robot
  * to drive the dt that way
@@ -61,26 +127,24 @@ class Fastlane(
 ) {
 
     // EXTERNAL PARAMETERS
-    var points: List<Waypoint> = emptyList()
+
+    var path: FastlanePath = FastlanePath(emptyList(), emptyList(), emptyList(), "")
         set(value) {
             field = value
-            distanceToEnd = Inches.of(
-                value
-                    .foldIndexed(0.0) { i, acc, pose ->
-                        if (i > 1) acc + value[i - 1].pose.distanceTo(pose.pose) else 0.0
-                    }
-            )
+            reset()
         }
+    val points: List<Waypoint> get() = path.waypoints
+    val rotationTargets: List<RotationTarget> get() = path.rotationTargets
+    val constraintZones: List<ConstraintZone> get() = path.constraintZones
+    val pathName: String get() = path.name
 
     // INTERNAL STATE TRACKING
-    private var index: Int = 1
     private lateinit var distanceToEnd: Distance
-
-    private val currentEndPoint get() = points[index]
-    private val currentStartPoint get() = points[index - 1]
+    private var index by path.state::waypointIndex
     private val lastPoint get() = points.last()
 
     // for usage with triggers and such
+    var lastT = 0.0
     var currentT = 0.0
     var isFinished = false
 
@@ -88,7 +152,7 @@ class Fastlane(
      * Resets all internal states. Call before any follower run.
      */
     fun reset() {
-        index = 0
+        path.state.reset()
         distanceToEnd = Inches.of(
             points
                 .foldIndexed(0.0) { i, acc, pose ->
@@ -111,26 +175,30 @@ class Fastlane(
 
         // while projected pose is past point, move on!
         while (index != points.size - 1
-            && propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) == 1.0
+            && propogatedPose.closestParameterOnSegment(path.currentStartWaypoint.pose, path.currentEndWaypoint.pose) == 1.0
         ) {
             index++
             // subtract off this segment
             if (index != points.size - 1) {
-                distanceToEnd -= Inches.of(currentStartPoint.pose.distanceTo(currentEndPoint.pose))
+                distanceToEnd -= Inches.of(path.currentStartWaypoint.pose.distanceTo(path.currentEndWaypoint.pose))
             }
         }
 
         // irrelevant amount of code dupe
-        currentT = propogatedPose.closestParameterOnSegment(currentStartPoint.pose, currentEndPoint.pose) + index - 1
+        lastT = currentT
+        currentT = propogatedPose.closestParameterOnSegment(path.currentStartWaypoint.pose, path.currentEndWaypoint.pose) + index - 1
+
+        // update targets before controllers take over
+        path.updateState(currentT)
 
         // translation!!
         // get the drive controller output, always wrt distance remaining to last. units ftc power!
         val controlMagnitude = drivetrainController.get(
-            distanceToEnd + Inches.of(propogatedPose.distanceTo(currentEndPoint.pose)),
+            distanceToEnd + Inches.of(propogatedPose.distanceTo(path.currentEndWaypoint.pose)),
             Inches.of(0.0)
-        ).coerceIn(-currentEndPoint.topSpeed, currentEndPoint.topSpeed)
+        ).coerceIn(-path.getMaxVoltage(currentT), path.getMaxVoltage(currentT))
 
-        var controlDirection = (currentEndPoint.pose - propogatedPose).line
+        var controlDirection = (path.currentEndWaypoint.pose - propogatedPose).line
         controlDirection /= controlDirection.norm()
         val controlDirectionVolts = Vector2d(
             controlMagnitude * controlDirection.x.baseUnitMagnitude,
@@ -138,7 +206,7 @@ class Fastlane(
         )
 
         // heading
-        val headingImpulse = headingController.get(pose.heading.toDouble(), currentEndPoint.pose.heading.toDouble())
+        val headingImpulse = headingController.get(pose.heading.toDouble(), path.rotationTarget.angle.toDouble())
 
         return PoseVoltage2d(controlDirectionVolts, headingImpulse)
     }
